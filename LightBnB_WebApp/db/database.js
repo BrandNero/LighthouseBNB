@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 const properties = require("./json/properties.json");
 const users = require("./json/users.json");
 const { Pool } = require('pg');
@@ -28,7 +29,7 @@ const getUserWithEmail = function(email) {
       }
     })
     .catch((err) => {
-      console.log(err.message);
+      return Promise.reject(err);
     });
 };
 
@@ -49,7 +50,7 @@ const getUserWithId = function(id) {
       }
     })
     .catch((err) => {
-      console.log(err.message);
+      return Promise.reject(err);
     });
 };
 
@@ -66,7 +67,7 @@ const addUser = function(user) {
       return result.rows[0];
     })
     .catch((err) => {
-      console.log(err.message);
+      return Promise.reject(err);
     });
 };
 
@@ -77,8 +78,25 @@ const addUser = function(user) {
  * @param {string} guest_id The id of the user.
  * @return {Promise<[{}]>} A promise to the reservations.
  */
-const getAllReservations = function(guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+const getAllReservations = function(guest_id, limit) {
+  const queryString =  `SELECT reservations.*, properties.*, avg(property_reviews.rating) as average_rating
+                        FROM reservations
+                        JOIN properties ON reservations.property_id = properties.id
+                        JOIN property_reviews ON properties.id = property_reviews.property_id
+                        WHERE reservations.guest_id = $1
+                        GROUP BY properties.id, reservations.id
+                        ORDER BY reservations.start_date
+                        LIMIT $2;`;
+
+  return pool
+    .query(queryString, [guest_id, limit])
+    .then((results) => {
+      console.log(results);
+      return results.rows;
+    })
+    .catch((err) => {
+      return Promise.reject(err);
+    });
 };
 
 /// Properties
@@ -91,15 +109,13 @@ const getAllReservations = function(guest_id, limit = 10) {
  */
 const getAllProperties = (options, limit) => {
   const queryString = `SELECT * FROM properties LIMIT $1`;
-  console.log(limit);
   return pool
     .query(queryString, [limit = 10])
     .then((result) => {
-      console.log(result.rows);
       return result.rows;
     })
     .catch((err) => {
-      console.log(err.message);
+      return Promise.reject(err);
     });
 };
 
